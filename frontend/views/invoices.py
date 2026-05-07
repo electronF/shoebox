@@ -5,7 +5,7 @@ Shows KPI summary, 12-month grouped bar chart, filter tabs, and
 an inline mark-as-paid action per row.
 """
 
-from datetime import date, timedelta
+from datetime import date
 
 import plotly.graph_objects as go
 from dash import dcc, html
@@ -38,14 +38,29 @@ _MONTHS_FR = {
 }
 
 
-def _last_12_months() -> list[str]:
-    """Returns the last 12 month strings in YYYY-MM order."""
-    today = date.today().replace(day=1)
+def _months_between(start_ym: str, end_ym: str) -> list[str]:
+    """Returns every YYYY-MM string from start_ym to end_ym inclusive."""
+    y, m = int(start_ym[:4]), int(start_ym[5:7])
+    ey, em = int(end_ym[:4]), int(end_ym[5:7])
+    out = []
+    while (y, m) <= (ey, em):
+        out.append(f"{y:04d}-{m:02d}")
+        m += 1
+        if m > 12:
+            m, y = 1, y + 1
+    return out
+
+
+def _last_n_months(n: int = 6) -> list[str]:
+    """Returns the last n months (proper calendar arithmetic, no 30-day drift)."""
+    y, m = date.today().year, date.today().month
     months = []
-    for i in range(11, -1, -1):
-        m = (today - timedelta(days=i * 30)).replace(day=1)
-        months.append(m.strftime("%Y-%m"))
-    return months
+    for _ in range(n):
+        months.append(f"{y:04d}-{m:02d}")
+        m -= 1
+        if m == 0:
+            m, y = 12, y - 1
+    return list(reversed(months))
 
 
 def _status_badge(status: str) -> html.Span:
@@ -85,7 +100,7 @@ def _kpi_card(icon: str, value: str, label: str, color: str, bg: str) -> html.Di
 
 
 def _monthly_chart(invoices: list) -> dcc.Graph:
-    """12-month grouped bar chart: Payées / En attente / Impayées.
+    """Grouped bar chart: Payées / En attente / Impayées, adaptive to actual data range.
 
     Args:
         invoices: Full invoice list from the API.
@@ -93,9 +108,24 @@ def _monthly_chart(invoices: list) -> dcc.Graph:
     Returns:
         dcc.Graph: Plotly grouped bar chart.
     """
-    months = _last_12_months()
-    labels = [_MONTHS_FR.get(m[5:], m[5:]) for m in months]
+    data_months = {
+        (inv.get("date_sent") or "")[:7]
+        for inv in invoices
+        if len((inv.get("date_sent") or "")) >= 7
+    }
 
+    if data_months:
+        months = _months_between(min(data_months), max(data_months))
+        # Ensure at least 3 columns for visual balance
+        if len(months) < 3:
+            months = _months_between(
+                min(data_months)[:-2] + f"{max(1, int(min(data_months)[5:7]) - 1):02d}",
+                max(data_months),
+            )
+    else:
+        months = _last_n_months(6)
+
+    labels      = [_MONTHS_FR.get(m[5:], m[5:]) for m in months]
     paid_amt    = {m: 0.0 for m in months}
     unpaid_amt  = {m: 0.0 for m in months}
     overdue_amt = {m: 0.0 for m in months}
@@ -114,7 +144,7 @@ def _monthly_chart(invoices: list) -> dcc.Graph:
             unpaid_amt[month] += amount
 
     fig = go.Figure([
-        go.Bar(name="Payées",      x=labels,
+        go.Bar(name="Payées",     x=labels,
                y=[paid_amt[m]    for m in months],
                marker_color=COLORS["ok"],      marker_line_width=0),
         go.Bar(name="En attente", x=labels,
@@ -135,6 +165,7 @@ def _monthly_chart(invoices: list) -> dcc.Graph:
         yaxis={
             "showgrid": True, "gridcolor": COLORS["border_light"],
             "tickprefix": "$", "tickfont": {"size": 10},
+            "rangemode": "nonnegative",
         },
         legend={
             "orientation": "h", "yanchor": "top", "y": -0.25,

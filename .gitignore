@@ -15,6 +15,9 @@ env/
 ENV/
 .env.local
 
+*.doc*
+
+
 # Environment variables — never commit secrets
 .env
 # .env.example is intentionally NOT ignored — it is safe to commit
@@ -88,6 +91,8 @@ logs/
 
 # Session context — AI-generated, not part of the codebase
 .context/
+.claude/
+backup/
 
 # Keep these directories tracked even when empty
 !data/.gitkeep

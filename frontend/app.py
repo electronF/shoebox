@@ -31,7 +31,7 @@ app = dash.Dash(
         "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap-grid.min.css",
     ],
     suppress_callback_exceptions=True,
-    title="Shoebox",
+    title="ShoeBox",
     # update_title=None,
 )
 

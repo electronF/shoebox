@@ -127,11 +127,10 @@ def _donut(by_src: dict) -> dcc.Graph:
         paper_bgcolor=COLORS["white"],
         margin={"l": 0, "r": 0, "t": 8, "b": 8},
         height=260,
-        legend={"font": {"family": FONTS["mono"], "size": 10},
-                "orientation": "h", "yanchor": "bottom", "y": -0.3},
-        showlegend=True,
+        showlegend=False,
     )
-    return dcc.Graph(figure=fig, config={"displayModeBar": False})
+    return dcc.Graph(figure=fig, config={"displayModeBar": False},
+                     style={"height": "260px"})
 
 
 def _src_bars(by_src: dict) -> html.Div:

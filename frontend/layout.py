@@ -34,9 +34,9 @@ def build_sidebar() -> html.Div:
                     }),
                     html.Span("o", style={
                         "fontFamily": FONTS["serif"], "fontSize": "20px",
-                        "fontWeight": "700", "color": COLORS["gold"],
+                        "fontWeight": "700", "color": COLORS["white"],
                     }),
-                    html.Span("ebox", style={
+                    html.Span("eBox", style={
                         "fontFamily": FONTS["serif"], "fontSize": "20px",
                         "fontWeight": "700", "color": COLORS["white"],
                     }),
