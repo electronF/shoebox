@@ -1,0 +1,100 @@
+shoebox/
+│
+├── .env                         # environment variables (DATABASE_URL, DEBUG, UPLOAD_DIR)
+├── .env.example                 # template to commit — no secrets
+├── pyproject.toml               # dependencies + ruff/mypy config
+├── README.md
+│
+├── data/
+│   ├── shoebox.db               # SQLite database file (gitignore)
+│   └── uploads/                 # physical uploaded files (gitignore)
+│
+└── backend/
+    ├── __init__.py
+    ├── main.py                  # FastAPI app factory + lifespan + router registration
+    │
+    ├── core/                    # Pure domain — zero external dependencies
+    │   ├── __init__.py
+    │   ├── config.py            # pydantic-settings: Settings singleton
+    │   ├── enums.py             # Category, SourceType, EntryMethod, DocType ...
+    │   ├── models.py            # Pure dataclasses: Transaction, Invoice, ActionItem ...
+    │   └── interfaces.py        # ABCs: ITransactionRepository, IParser, IFileStorage ...
+    │
+    ├── schemas/                 # Pydantic v2 — API input/output validation only
+    │   ├── __init__.py
+    │   ├── common.py            # PaginatedResponse[T], ErrorDetail, HealthCheck
+    │   ├── transaction.py       # TransactionCreate, TransactionUpdate, TransactionRead
+    │   ├── invoice.py           # InvoiceCreate, InvoiceUpdate, InvoiceRead
+    │   ├── source.py            # PaymentSourceCreate, PaymentSourceRead
+    │   ├── file.py              # UploadedFileRead, IngestionResult
+    │   └── analytics.py         # AnalyticsSummary, CategoryBreakdown
+    │
+    ├── infrastructure/          # Concrete implementations (depends on core interfaces)
+    │   ├── __init__.py
+    │   │
+    │   ├── db/
+    │   │   ├── __init__.py      # exposes: Base, engine, get_session, create_all_tables
+    │   │   ├── database.py      # SQLAlchemy engine + WAL config + session factory
+    │   │   ├── orm_models.py    # SQLAlchemy ORM classes (TransactionORM, InvoiceORM ...)
+    │   │   ├── id_generator.py  # generate_id() -> "REC-250122-00001"
+    │   │   └── repositories.py  # SQL implementations of core interfaces
+    │   │
+    │   ├── parsers/
+    │   │   ├── __init__.py
+    │   │   ├── base.py          # BaseParser: try/except wrapper + logging
+    │   │   ├── pdf_parser.py    # PDFStatementParser — pdfplumber
+    │   │   ├── image_parser.py  # ImageReceiptParser — pytesseract + Pillow
+    │   │   ├── xlsx_parser.py   # XLSXParser — openpyxl
+    │   │   └── txt_parser.py    # TxtNotesParser — extracts [todo]/[done] items
+    │   │
+    │   ├── categorization/
+    │   │   ├── __init__.py
+    │   │   ├── rules.py         # RULES list + categorize() — OCP: add rule = add entry
+    │   │   └── validator.py     # validate_transaction() -> ValidationResult
+    │   │
+    │   └── storage.py           # DiskFileStorage — implements IFileStorage
+    │
+    ├── services/                # Business logic — SRP, depends only on core interfaces
+    │   ├── __init__.py
+    │   ├── ingestion_service.py # IngestionService: upload -> parse -> validate -> persist
+    │   ├── transaction_service.py # CRUD + filtering for transactions
+    │   ├── invoice_service.py   # CRUD for issued invoices
+    │   ├── analytics_service.py # KPIs: summary, by_category, by_month, by_source
+    │   ├── recurring_service.py # detect recurring patterns + forecast
+    │   └── action_service.py    # CRUD for action items (todos)
+    │
+    ├── api/                     # FastAPI layer — thin controllers only
+    │   ├── __init__.py
+    │   ├── dependencies.py      # Depends() factories: get_*_service(), get_session()
+    │   └── routers/
+    │       ├── __init__.py
+    │       ├── health.py        # GET /health
+    │       ├── transactions.py  # GET/POST/PATCH/DELETE /transactions
+    │       ├── invoices.py      # GET/POST/PATCH /invoices
+    │       ├── sources.py       # GET/POST /sources
+    │       ├── files.py         # POST /files/upload  GET /files
+    │       ├── analytics.py     # GET /analytics/summary|by-category|by-month|by-source
+    │       └── actions.py       # GET/POST/PATCH /actions
+    │
+    └── tests/
+        ├── __init__.py
+        ├── conftest.py          # pytest fixtures: in-memory DB, mocked services
+        ├── test_id_generator.py
+        ├── test_categorization.py
+        ├── test_ingestion_service.py
+        └── test_transaction_router.py
+
+
+KEY DESIGN DECISIONS
+────────────────────
+core/models.py       Pure Python dataclasses. No SQLAlchemy, no Pydantic.
+infrastructure/db/orm_models.py  SQLAlchemy ORM classes only. Mapped to DB tables.
+schemas/             Pydantic models only. Used at the API boundary (in/out).
+
+Routers never import repositories directly.
+Services never import FastAPI or Pydantic.
+Core never imports SQLAlchemy or FastAPI.
+
+ID format:  PREFIX-YYMMDD-NNNNN  (e.g. REC-250122-00001)
+Prefix is determined by DocType for files/transactions, table name otherwise.
+Generated in Python (not SQL) for SQLite compatibility.

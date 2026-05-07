@@ -1,0 +1,38 @@
+shoebox/
+├── backend/
+│   ├── core/                        # Domaine pur — pas de dépendances externes
+│   │   ├── models.py                # Dataclasses (entités)
+│   │   ├── interfaces.py            # Abstractions (ISP / DIP)
+│   │   └── enums.py                 # Catégories, types de source
+│   ├── infrastructure/
+│   │   ├── db/
+│   │   │   ├── database.py          # SQLAlchemy engine + session
+│   │   │   ├── migrations.py        # Création des tables
+│   │   │   └── repositories.py      # Implémentations concrètes (DIP)
+│   │   ├── parsers/
+│   │   │   ├── base_parser.py       # Interface IParser (OCP)
+│   │   │   ├── pdf_parser.py        # Visa statement parser
+│   │   │   ├── image_parser.py      # Reçus photo (OCR Tesseract)
+│   │   │   ├── xlsx_parser.py       # Invoices
+│   │   │   └── txt_parser.py        # notes.txt
+│   │   └── storage.py               # Gestion fichiers sur disque
+│   ├── services/
+│   │   ├── ingestion_service.py     # Orchestration parsing → DB (SRP)
+│   │   ├── categorization_service.py# Règles de catégorisation (SRP)
+│   │   ├── recurring_service.py     # Détection récurrents + prévisions
+│   │   └── analytics_service.py     # Calculs dashboard
+│   └── api/
+│       └── routes.py                # Flask endpoints (optionnel)
+├── frontend/
+│   ├── app.py                       # Point d'entrée Dash
+│   ├── layout.py                    # Layout principal
+│   └── views/
+│       ├── overview.py              # Vue synthèse Q1
+│       ├── recurring.py             # Récurrents & prévisions
+│       ├── cards.py                 # Sources multi-cartes
+│       └── files.py                 # Traçabilité fichiers
+├── data/
+│   ├── shoebox/                     # Fichiers uploadés
+│   └── shoebox.db                   # SQLite
+├── requirements.txt
+└── README.md

@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+**.venv/
+.venv/
+venv/
+**venv/
+env/
+ENV/
+.env.local
+
+# Environment variables — never commit secrets
+.env
+# .env.example is intentionally NOT ignored — it is safe to commit
+
+# Build / packaging─
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+MANIFEST
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+coverage_report/
+htmlcov/
+*.cover
+.hypothesis/
+
+# Type checking─
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# Linting─
+.ruff_cache/
+
+# Database — never commit data files 
+data/shoebox.db
+data/shoebox.db-wal
+data/shoebox.db-shm
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded files — user data, can be large 
+data/uploads/
+
+# OS artifacts 
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V500
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDEs 
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+
+# Logs 
+*.log
+logs/
+
+# Jupyter (if ever used for data exploration) 
+.ipynb_checkpoints/
+*.ipynb
+
+# Docker (to be added when Docker support lands)
+# .docker/
+
+# Keep these directories tracked even when empty 
+!data/.gitkeep
+!data/uploads/.gitkeep
