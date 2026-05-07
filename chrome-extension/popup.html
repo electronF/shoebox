@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shoebox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-sh">Sh</span><span class="logo-o">o</span><span class="logo-rest">ebox</span>
+    </div>
+    <div class="header-sub">FINANCES FREELANCE</div>
+  </header>
+
+  <!-- Connection error banner (hidden by default) -->
+  <div id="error-banner" class="error-banner hidden">
+    <i class="fa-solid fa-plug-circle-xmark"></i>
+    <span>Backend inaccessible — lancez <code>make dev</code></span>
+  </div>
+
+  <!-- Loading state -->
+  <div id="loading" class="loading">
+    <i class="fa-solid fa-circle-notch fa-spin"></i>
+    <span>Chargement…</span>
+  </div>
+
+  <!-- Main content (hidden until data loads) -->
+  <main id="content" class="hidden">
+
+    <!-- Period badge -->
+    <div class="period-bar">
+      <span class="period-label">PÉRIODE ACTIVE</span>
+      <span class="period-value" id="period-value">Q1 2025</span>
+    </div>
+
+    <!-- KPI grid -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon--green">
+          <i class="fa-solid fa-briefcase"></i>
+        </div>
+        <div class="kpi-value" id="kpi-business">—</div>
+        <div class="kpi-label">Dépenses pro</div>
+        <div class="kpi-sub" id="kpi-tx-count">— transactions</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon--amber">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <div class="kpi-value" id="kpi-collect">—</div>
+        <div class="kpi-label">À encaisser</div>
+        <div class="kpi-sub" id="kpi-overdue-count"></div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon--blue">
+          <i class="fa-solid fa-rotate-left"></i>
+        </div>
+        <div class="kpi-value" id="kpi-refunds">—</div>
+        <div class="kpi-label">Remboursements</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon--red">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div class="kpi-value" id="kpi-flagged">—</div>
+        <div class="kpi-label">À vérifier</div>
+      </div>
+    </section>
+
+    <!-- To-do section -->
+    <section class="section">
+      <div class="section-title">
+        <i class="fa-solid fa-list-check"></i>
+        À faire
+      </div>
+      <ul id="todo-list" class="todo-list">
+        <li class="todo-empty">Aucune action en attente.</li>
+      </ul>
+    </section>
+
+    <!-- Invoices section -->
+    <section class="section">
+      <div class="section-title">
+        <i class="fa-solid fa-file-invoice-dollar"></i>
+        Factures en attente
+      </div>
+      <ul id="invoice-list" class="todo-list">
+        <li class="todo-empty">Aucune facture en attente.</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <button id="btn-open" class="btn-open">
+      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+      Ouvrir le tableau de bord
+    </button>
+    <button id="btn-refresh" class="btn-refresh" title="Actualiser">
+      <i class="fa-solid fa-rotate-right"></i>
+    </button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

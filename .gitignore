@@ -86,6 +86,9 @@ logs/
 # Docker (to be added when Docker support lands)
 # .docker/
 
-# Keep these directories tracked even when empty 
+# Session context — AI-generated, not part of the codebase
+.context/
+
+# Keep these directories tracked even when empty
 !data/.gitkeep
 !data/uploads/.gitkeep

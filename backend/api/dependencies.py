@@ -28,6 +28,7 @@ from backend.infrastructure.storage import DiskFileStorage
 from backend.services.analytics_service import AnalyticsService
 from backend.services.ingestion_service import IngestionService
 from backend.services.invoice_service import InvoiceService
+from backend.services.recurring_service import RecurringService
 from backend.services.transaction_service import TransactionService
 
 
@@ -106,3 +107,10 @@ def get_analytics_service(
         transaction_repo=SQLTransactionRepository(db),
         source_repo=SQLSourceRepository(db),
     )
+
+
+def get_recurring_service(
+    db: Session = Depends(get_session),
+) -> RecurringService:
+    """Injects the recurring expense detection service."""
+    return RecurringService(transaction_repo=SQLTransactionRepository(db))

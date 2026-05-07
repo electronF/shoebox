@@ -20,6 +20,22 @@ from backend.infrastructure.parsers.base import BaseParser
 
 logger = logging.getLogger(__name__)
 
+# Statement header extraction
+_HOLDER_RE = re.compile(r"Account Holder:\s*(.+)", re.IGNORECASE)
+_CARD_RE   = re.compile(r"Card Number:.*?(\d{4})\s*$", re.MULTILINE | re.IGNORECASE)
+_PERIOD_RE = re.compile(
+    r"(January|February|March|April|May|June|July|August|September"
+    r"|October|November|December)\s+(\d{1,2})\s*[–\-]\s*"
+    r"(?:\w+\s+)?(January|February|March|April|May|June|July|August"
+    r"|September|October|November|December)\s+(\d{1,2}),?\s*(\d{4})",
+    re.IGNORECASE,
+)
+_FULL_MONTH: dict[str, int] = {
+    "january": 1, "february": 2, "march": 3,    "april": 4,
+    "may": 5,     "june": 6,     "july": 7,      "august": 8,
+    "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
 # Matches lines like: TXN-0103-001  Jan 03  GOOGLE *WORKSPACE  $8.28
 _TRANSACTION_LINE_PATTERN = re.compile(
     r"(TXN-[\w-]+)\s+"
@@ -104,6 +120,49 @@ class PDFStatementParser(BaseParser):
             file_path,
         )
         return transactions
+
+    def extract_metadata(self, file_path: str) -> dict:
+        """
+        Extracts header metadata from a statement PDF.
+
+        Reads account holder name, last four card digits, and the
+        statement period dates from the PDF header section.
+
+        Args:
+            file_path: Absolute path to the PDF file.
+
+        Returns:
+            Dict with keys: holder, last_four, period_from, period_to, source_label.
+            All values are strings; dates are in YYYY-MM-DD ISO format.
+        """
+        text = self._extract_text(file_path)
+
+        holder_m = _HOLDER_RE.search(text)
+        card_m   = _CARD_RE.search(text)
+        period_m = _PERIOD_RE.search(text)
+
+        holder    = holder_m.group(1).strip() if holder_m else ""
+        last_four = card_m.group(1)           if card_m   else ""
+
+        period_from = period_to = ""
+        if period_m:
+            m1, d1, m2, d2, yr = period_m.groups()
+            y = int(yr)
+            try:
+                period_from = date(y, _FULL_MONTH[m1.lower()], int(d1)).isoformat()
+                period_to   = date(y, _FULL_MONTH[m2.lower()], int(d2)).isoformat()
+            except (ValueError, KeyError):
+                pass
+
+        source_label = f"Visa *{last_four}" if last_four else "Carte de crédit"
+
+        return {
+            "holder":       holder,
+            "last_four":    last_four,
+            "period_from":  period_from,
+            "period_to":    period_to,
+            "source_label": source_label,
+        }
 
     @staticmethod
     def _extract_text(file_path: str) -> str:

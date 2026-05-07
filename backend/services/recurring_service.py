@@ -32,22 +32,24 @@ class RecurringPattern:
     A detected recurring expense pattern.
 
     Attributes:
-        merchant_key:  Normalized merchant identifier (uppercase, no punctuation).
-        display_name:  Human-readable merchant name from the first seen transaction.
-        frequency:     Whether the amount is fixed monthly or variable.
-        avg_amount:    Average charge amount across all observed months.
-        months_seen:   Sorted list of month numbers where this merchant appeared.
-        category:      Expense category (from the first matched transaction).
-        confidence:    Score between 0.0 and 1.0 indicating pattern reliability.
+        merchant_key:    Normalized merchant identifier (uppercase, no punctuation).
+        display_name:    Human-readable merchant name from the first seen transaction.
+        frequency:       Whether the amount is fixed monthly or variable.
+        avg_amount:      Average charge amount across all observed months.
+        months_seen:     Sorted list of month numbers where this merchant appeared.
+        category:        Expense category (from the first matched transaction).
+        confidence:      Score between 0.0 and 1.0 indicating pattern reliability.
+        monthly_amounts: Mapping of "YYYY-MM" to total amount charged in that month.
     """
 
-    merchant_key: str
-    display_name: str
-    frequency:    RecurrenceFrequency
-    avg_amount:   float
-    months_seen:  list[int]
-    category:     Category
-    confidence:   float
+    merchant_key:    str
+    display_name:    str
+    frequency:       RecurrenceFrequency
+    avg_amount:      float
+    months_seen:     list[int]
+    category:        Category
+    confidence:      float
+    monthly_amounts: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -124,6 +126,11 @@ class RecurringService:
                 (len(distinct_months) / 3.0) * (1.0 - variation * 0.5),
             )
 
+            monthly_amounts: dict[str, float] = {}
+            for t in merchant_transactions:
+                key = t.date.strftime("%Y-%m")
+                monthly_amounts[key] = round(monthly_amounts.get(key, 0) + t.amount, 2)
+
             patterns.append(RecurringPattern(
                 merchant_key=merchant_key,
                 display_name=merchant_transactions[0].description,
@@ -132,6 +139,7 @@ class RecurringService:
                 months_seen=distinct_months,
                 category=merchant_transactions[0].category,
                 confidence=round(confidence, 2),
+                monthly_amounts=monthly_amounts,
             ))
 
             logger.debug(

@@ -1,4 +1,19 @@
 shoebox/
+│
+├── .env
+├── .env.example
+├── .gitignore
+├── Makefile
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+│
+├── data/
+│   ├── .gitkeep                    
+│   ├── shoebox.db                  # SQLite
+│   └── uploads/                    # Fichiers uploadés
+│       └── .gitkeep
+│
 ├── backend/
 │   ├── core/                        # Domaine pur — pas de dépendances externes
 │   │   ├── models.py                # Dataclasses (entités)
@@ -24,15 +39,45 @@ shoebox/
 │   └── api/
 │       └── routes.py                # Flask endpoints (optionnel)
 ├── frontend/
-│   ├── app.py                       # Point d'entrée Dash
-│   ├── layout.py                    # Layout principal
+│   ├── __init__.py
+│   ├── app.py                   # Dash entry point + server
+│   ├── layout.py                # Shell: sidebar + top bar + page container
+│   ├── api_client.py            # HTTP calls to FastAPI backend
+│   ├── theme.py                 # Colors, fonts, reusable style constants
+│   ├── components/              # Reusable UI components
+│   │   ├── __init__.py
+│   │   ├── kpi_card.py          # Metric card with label + value + sub
+│   │   ├── badge.py             # Status badge (ok / warning / error / informal)
+│   │   ├── alert_bar.py         # Dismissable alert (green / amber / red)
+│   │   ├── section_block.py     # Collapsible form section with header badge
+│   │   ├── tooltip.py           # Info bubble (!) for form fields
+│   │   └── doc_type_tile.py     # Document type selector tile
 │   └── views/
-│       ├── overview.py              # Vue synthèse Q1
-│       ├── recurring.py             # Récurrents & prévisions
-│       ├── cards.py                 # Sources multi-cartes
-│       └── files.py                 # Traçabilité fichiers
-├── data/
-│   ├── shoebox/                     # Fichiers uploadés
-│   └── shoebox.db                   # SQLite
-├── requirements.txt
-└── README.md
+│       ├── __init__.py
+│       ├── upload/
+│       │   ├── __init__.py
+│       │   ├── step3_type.py    # Step 3: doc type selection + method choice
+│       │   ├── step4_forms.py   # Step 4: generated forms + OCR preview
+│       │   ├── step5_history.py # Step 5: history table + result alerts
+│       │   ├── popup_upload.py  # File picker popup with format validation
+│       │   └── form_fields/
+│       │       ├── __init__.py
+│       │       ├── receipt.py   # Fields for official/informal receipts
+│       │       ├── statement.py # Fields for bank/card statements
+│       │       ├── invoice.py   # Fields for issued invoices
+│       │       └── manual.py    # Generic manual entry form
+│       ├── overview.py          # KPIs + by-category + monthly chart
+│       ├── subscriptions.py     # Subscription audit + savings analysis
+│       ├── report.py            # Tax deduction report by category
+│       ├── recurring.py         # Recurring patterns + Q2 forecast
+│       ├── sources.py           # Sources & cards filter + donut
+│       └── files.py             # File traceability register
+│
+└── extension/                   # Chrome extension (upcoming)
+    ├── manifest.json
+    ├── popup.html
+    ├── popup.js
+    └── icons/
+        ├── icon16.png
+        ├── icon48.png
+        └── icon128.png

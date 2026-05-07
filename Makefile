@@ -181,3 +181,23 @@ clean:
 	find . -type f -name "*.pyc"         -delete 2>/dev/null || true
 	rm -rf coverage_report/ .coverage
 	@echo "$(GREEN)Done.$(RESET)"
+
+# ── Frontend ─────────────────────────────────────────────────────────────────
+
+.PHONY: dev prod frontend frontend-only test test-cov lint format typecheck \
+        db-init db-reset db-shell install clean help
+
+frontend:
+	@echo "$(BOLD)Starting full stack (backend + frontend)$(RESET)"
+	@echo "  Backend  → http://localhost:8000"
+	@echo "  Frontend → http://localhost:8050"
+	@echo ""
+	$(MAKE) dev &
+	@sleep 2
+	PYTHONPATH=. $(PYTHON) frontend/app.py
+
+frontend-only:
+	@echo "$(BOLD)Starting Dash frontend on http://localhost:8050$(RESET)"
+	@echo "  Requires backend already running on port 8000"
+	@echo ""
+	PYTHONPATH=. $(PYTHON) frontend/app.py

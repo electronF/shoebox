@@ -175,3 +175,114 @@ def list_files(
         List of files sorted by upload date (descending).
     """
     return [UploadedFileRead.model_validate(f, from_attributes=True) for f in repo.get_all()]
+
+
+@router.post(
+    "/parse",
+    summary="Parse a file without saving to database",
+    description=(
+        "Extracts data from a file using OCR or parsing "
+        "and returns the result. Nothing is saved to the database. "
+        "Use POST /files/upload to persist after user validation."
+    ),
+)
+async def parse_file_preview(
+    file:        UploadFile          = File(...),
+    doc_type:    DocType             = Form(...),
+    service:     IngestionService    = Depends(get_ingestion_service),
+) -> dict:
+    """
+    Parses a single file and returns extracted field values.
+
+    Args:
+        file:     File to parse.
+        doc_type: Declared document type.
+        service:  Injected ingestion service.
+
+    Returns:
+        Dict of extracted fields — no DB writes performed.
+    """
+    from pathlib import Path
+    import tempfile, os
+
+    filename  = file.filename or "upload"
+    content   = await file.read()
+    extension = Path(filename).suffix.lower()
+
+    # Validate format
+    try:
+        _validate_file_format(filename, doc_type)
+    except HTTPException:
+        return {"status": "wrong_format", "data": {}}
+
+    # Write to temp file for parser
+    with tempfile.NamedTemporaryFile(
+        suffix=extension, delete=False
+    ) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        parser = next(
+            (p for p in service._parsers if p.can_parse(filename)),
+            None,
+        )
+        if not parser:
+            return {"status": "no_parser", "data": {}}
+
+        transactions = parser.parse(tmp_path, "preview", "preview")
+
+        # Statement: return header metadata + all transaction rows
+        if doc_type == DocType.STATEMENT:
+            metadata: dict = {}
+            if hasattr(parser, "extract_metadata"):
+                metadata = parser.extract_metadata(tmp_path)
+
+            tx_rows = [
+                {
+                    "date":        str(tx.date),
+                    "description": tx.description,
+                    "amount":      str(tx.amount),
+                    "ref":         tx.ref or "",
+                }
+                for tx in transactions
+            ]
+            return {
+                "status": "ok" if transactions else "empty",
+                "data":   {**metadata, "transactions": tx_rows},
+            }
+
+        # Invoice (xlsx multi-row): return all rows for editable table
+        if doc_type == DocType.INVOICE:
+            if hasattr(parser, "extract_rows"):
+                inv_rows = parser.extract_rows(tmp_path)
+                return {
+                    "status": "ok" if inv_rows else "empty",
+                    "data":   {"rows": inv_rows},
+                }
+
+        # Notes: return raw text content for pre-population in the textarea
+        if doc_type == DocType.NOTES:
+            raw_text = Path(tmp_path).read_text(encoding="utf-8", errors="replace")
+            return {"status": "ok", "data": {"note_text": raw_text}}
+
+        # Receipt / other: return first transaction fields
+        if transactions:
+            tx = transactions[0]
+            return {
+                "status": "ok",
+                "data": {
+                    "merchant":       tx.description,
+                    "date":           str(tx.date),
+                    "amount":         str(abs(tx.amount)),
+                    "total":          str(abs(tx.amount)),
+                    "category":       tx.category.value,
+                    "ref":            tx.ref or "",
+                    "ocr_confidence": tx.ocr_confidence,
+                },
+            }
+
+        return {"status": "empty", "data": {}}
+
+    finally:
+        os.unlink(tmp_path)

@@ -1,14 +1,18 @@
 """
 FastAPI Router for dashboard analytics and KPIs.
 
-These endpoints are read-only and never modify the 
+These endpoints are read-only and never modify the
 state of the database.
 """
 
+from dataclasses import asdict
+from datetime import date
+
 from fastapi import APIRouter, Depends
 
-from backend.api.dependencies import get_analytics_service
+from backend.api.dependencies import get_analytics_service, get_recurring_service
 from backend.services.analytics_service import AnalyticsService, AnalyticsSummary
+from backend.services.recurring_service import RecurringService
 
 router = APIRouter()
 
@@ -65,3 +69,26 @@ def get_by_source(
 ) -> dict[str, float]:
     """Returns total expenses grouped by payment source."""
     return service.by_source()
+
+
+@router.get(
+    "/recurring",
+    summary="Recurring expense patterns and 3-month forecast",
+)
+def get_recurring(
+    service: RecurringService = Depends(get_recurring_service),
+) -> dict:
+    """
+    Detects recurring expense patterns and projects them forward.
+
+    Returns:
+        Dict with "patterns" (list of detected RecurringPattern dicts)
+        and "forecast" (list of ForecastEntry dicts for next 3 months).
+    """
+    patterns = service.detect_patterns()
+    now      = date.today()
+    forecast = service.forecast(patterns, last_month=now.month, year=now.year)
+    return {
+        "patterns": [asdict(p) for p in patterns],
+        "forecast": [asdict(f) for f in forecast],
+    }

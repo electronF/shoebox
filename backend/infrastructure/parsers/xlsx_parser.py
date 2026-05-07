@@ -146,3 +146,43 @@ class XLSXParser(BaseParser):
             len(transactions), file_path,
         )
         return transactions
+
+    def extract_rows(self, file_path: str) -> list[dict]:
+        """
+        Returns all data rows as raw dicts for form pre-population.
+
+        Preserves all available columns (client, description, amount,
+        date_sent, date_paid) so the Step 4 form can show editable rows.
+
+        Args:
+            file_path: Absolute path to the .xlsx file.
+
+        Returns:
+            List of dicts with keys: client, description, amount,
+            date_sent, date_paid.
+        """
+        workbook  = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+        worksheet = workbook.worksheets[0]
+        rows: list[dict] = []
+
+        for row in worksheet.iter_rows(min_row=2, values_only=True):
+            if not row or row[_COL_AMOUNT] is None:
+                continue
+            try:
+                amount = float(str(row[_COL_AMOUNT]))
+            except (ValueError, TypeError):
+                continue
+
+            date_sent = _parse_date(row[_COL_DATE_SENT])
+            date_paid = _parse_date(row[_COL_DATE_PAID]) if len(row) > _COL_DATE_PAID else None
+
+            rows.append({
+                "client":      str(row[_COL_CLIENT]      or ""),
+                "description": str(row[_COL_DESCRIPTION] or ""),
+                "amount":      str(abs(amount)),
+                "date_sent":   date_sent.isoformat() if date_sent else "",
+                "date_paid":   date_paid.isoformat() if date_paid else "",
+            })
+
+        workbook.close()
+        return rows

@@ -1,8 +1,8 @@
 # Shoebox
 
-**Freelance financial manager** — turns a folder of raw financial documents (bank statements, receipts, invoices, notes) into a structured, queryable database with a dashboard frontend.
+**Freelance financial manager** — turns a folder of raw financial documents (bank statements, receipts, invoices, notes) into a structured, queryable database with a full dashboard frontend and a Chrome extension for at-a-glance KPIs.
 
-> **Status:** Backend complete · Frontend in progress
+> **Status:** Backend complete · Frontend complete · Chrome extension ready
 
 ---
 
@@ -16,9 +16,10 @@
 6. [Running the application](#running-the-application)
 7. [Available make commands](#available-make-commands)
 8. [Running the tests](#running-the-tests)
-9. [API reference](#api-reference)
-10. [Architecture notes](#architecture-notes)
-11. [Roadmap](#roadmap)
+9. [Chrome extension](#chrome-extension)
+10. [API reference](#api-reference)
+11. [Architecture notes](#architecture-notes)
+12. [Roadmap](#roadmap)
 
 ---
 
@@ -26,17 +27,18 @@
 
 | Layer | Technology |
 |---|---|
-| API framework | FastAPI 0.111 + uvicorn |
+| API framework | FastAPI 0.111+ + uvicorn |
 | Data validation | Pydantic v2 |
 | ORM | SQLAlchemy 2.x (Mapped / mapped_column) |
-| Database | SQLite (WAL mode) — swappable for PostgreSQL/MySQL via one env var |
-| PDF parsing | pdfplumber |
+| Database | SQLite (WAL mode) — swappable for PostgreSQL via one env var |
+| PDF parsing | PyMuPDF |
 | Image OCR | pytesseract + Pillow |
 | Spreadsheet parsing | openpyxl |
 | Testing | pytest + pytest-asyncio + httpx |
 | Linting / formatting | ruff |
 | Type checking | mypy (strict) |
-| Frontend | Dash + Plotly (in progress) |
+| Frontend | Dash 2.17 + Plotly 5.22 |
+| Browser extension | Chrome Extension (Manifest V3) |
 
 ---
 
@@ -49,58 +51,51 @@ shoebox/
 ├── .env.example                 # template — safe to commit
 ├── Makefile                     # developer task runner
 ├── pyproject.toml               # dependencies + ruff/mypy config
+├── requirements.txt             # pinned flat dependency list
 ├── README.md
 │
 ├── data/
 │   ├── shoebox.db               # SQLite database (gitignored)
 │   └── uploads/                 # physical uploaded files (gitignored)
 │
+├── chrome-extension/            # Chrome Extension (Manifest V3)
+│   ├── manifest.json
+│   ├── popup.html
+│   ├── popup.css
+│   ├── popup.js
+│   └── icons/                   # 16 / 48 / 128 px PNG icons
+│
+├── frontend/                    # Dash application (port 8050)
+│   ├── app.py                   # Entry point + router + nav callbacks
+│   ├── layout.py                # Persistent shell (sidebar, stores)
+│   ├── theme.py                 # Design system — colors, fonts, spacing
+│   ├── api_client.py            # HTTP client wrapping the FastAPI backend
+│   ├── assets/                  # Global CSS
+│   ├── components/              # Reusable Dash components
+│   └── views/                   # One module per page
+│       ├── overview.py          # Main dashboard
+│       ├── invoices.py          # Issued invoice tracking
+│       ├── invoices_callbacks.py
+│       ├── subscriptions.py
+│       ├── recurring.py
+│       ├── report.py
+│       ├── sources.py
+│       ├── files.py
+│       └── upload/              # 4-step ingestion wizard
+│
 └── backend/
-    ├── main.py                  # FastAPI app factory + lifespan + router registration
+    ├── main.py                  # FastAPI app factory + lifespan
     ├── core/                    # Pure domain — zero external dependencies
-    │   ├── config.py            # pydantic-settings: Settings singleton
-    │   ├── enums.py             # Category, SourceType, EntryMethod, DocType …
-    │   ├── models.py            # Pure dataclasses: Transaction, Invoice, ActionItem …
-    │   └── interfaces.py        # ABCs: ITransactionRepository, IParser, IFileStorage …
-    ├── schemas/                 # Pydantic v2 — API input/output validation only
-    │   ├── common.py            # PaginatedResponse[T], ErrorDetail, HealthCheck
-    │   ├── transaction.py       # TransactionCreate / Update / Read
-    │   ├── invoice.py           # InvoiceCreate / Update / Read
-    │   ├── source.py            # PaymentSourceCreate / Read
-    │   ├── file.py              # UploadedFileRead, IngestionResult
-    │   └── analytics.py         # AnalyticsSummary, CategoryBreakdown
-    ├── infrastructure/          # Concrete implementations (OCP)
-    │   ├── db/
-    │   │   ├── database.py      # SQLAlchemy engine + WAL config + session factory
-    │   │   ├── orm_models.py    # SQLAlchemy ORM classes
-    │   │   ├── id_generator.py  # generate_id() → "REC-250122-00001"
-    │   │   └── repositories.py  # SQL implementations of core interfaces
-    │   ├── parsers/             # PDF, Image/OCR, XLSX, TXT parsers
-    │   ├── categorization/      # Keyword rules + transaction validator
-    │   └── storage.py           # DiskFileStorage
-    ├── services/                # Business logic — SRP, depends only on interfaces
-    │   ├── ingestion_service.py
-    │   ├── transaction_service.py
-    │   ├── invoice_service.py
-    │   ├── analytics_service.py
-    │   ├── recurring_service.py
-    │   └── action_service.py
-    ├── api/                     # FastAPI layer — thin controllers only
-    │   ├── dependencies.py      # Depends() factories
-    │   └── routers/             # health, transactions, invoices, sources, files, analytics, actions
+    ├── schemas/                 # Pydantic v2 — API input/output only
+    ├── infrastructure/          # DB, parsers, storage (OCP)
+    ├── services/                # Business logic (SRP)
+    ├── api/                     # FastAPI routers — thin controllers
     └── tests/
-        ├── conftest.py          # in-memory DB fixtures, SAVEPOINT isolation
-        ├── test_id_generator.py
-        ├── test_categorization.py
-        ├── test_ingestion_service.py
-        └── test_transaction_router.py
 ```
 
 ---
 
 ## Prerequisites
-
-Before you start, make sure the following are installed on your machine.
 
 ### Python 3.11+
 
@@ -109,11 +104,9 @@ python3 --version
 # Python 3.11.x or higher required
 ```
 
-Download from [python.org](https://www.python.org/downloads/) if needed.
-
 ### Tesseract OCR
 
-Required for parsing receipt images. Install the French language pack as well.
+Required for parsing receipt images.
 
 **macOS (Homebrew)**
 ```bash
@@ -122,275 +115,189 @@ brew install tesseract tesseract-lang
 
 **Ubuntu / Debian**
 ```bash
-sudo apt update
-sudo apt install tesseract-ocr tesseract-ocr-fra
+sudo apt update && sudo apt install tesseract-ocr tesseract-ocr-fra
 ```
 
-**Windows**
-Download the installer from [github.com/UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
-Add the install directory to your `PATH`.
-
-Verify:
-```bash
-tesseract --version
-```
-
-### SQLite (CLI, optional)
-
-Only needed for `make db-shell`. Usually pre-installed on macOS and Linux.
-
-```bash
-sqlite3 --version
-```
+**Windows** — installer at [github.com/UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki). Add install dir to `PATH`.
 
 ---
 
 ## Environment setup
 
-### 1. Clone the repository
-
 ```bash
+# 1. Clone
 git clone https://github.com/youruser/shoebox.git
 cd shoebox
-```
 
-### 2. Create a virtual environment
-
-```bash
+# 2. Create and activate virtual environment
 python3 -m venv .venv
-```
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate.bat     # Windows
 
-### 3. Activate the virtual environment
-
-**macOS / Linux**
-```bash
-source .venv/bin/activate
-```
-
-**Windows (PowerShell)**
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-**Windows (Command Prompt)**
-```cmd
-.venv\Scripts\activate.bat
-```
-
-You should see `(.venv)` in your terminal prompt.
-
-### 4. Install dependencies
-
-```bash
+# 3. Install all dependencies (including dev)
 make install
-# or without make:
-pip install -e ".[dev]"
-```
 
-This installs the application and all development dependencies (pytest, ruff, mypy, httpx).
-
-### 5. Create the data directories
-
-The Makefile handles this automatically, but you can also do it manually:
-
-```bash
-mkdir -p data/uploads
+# 4. Copy env config
+cp .env.example .env
 ```
 
 ---
 
 ## Configuration
 
-### Copy the example env file
+Edit `.env`:
 
 ```bash
-cp .env.example .env
-```
-
-### Edit `.env`
-
-```bash
-# Database — SQLite by default
-# To switch to PostgreSQL, change this one line. No application code changes.
-DATABASE_URL=sqlite:///./data/shoebox.db
-# DATABASE_URL=postgresql://user:password@localhost:5432/shoebox
-
-# Directory where uploaded files are stored on disk
+DATABASE_URL=sqlite:///./data/shoebox.db   # or postgresql://...
 UPLOAD_DIR=./data/uploads
-
-# Set to true to enable SQL query logging in the terminal
 DEBUG=false
-
-# Set to true only when running the test suite
 TESTING=false
-
-# API metadata (shown in /docs)
 APP_TITLE=Shoebox API
-APP_VERSION=0.1.0
+APP_VERSION=1.0.0
 ```
-
-> **Switching databases:** changing `DATABASE_URL` to a PostgreSQL or MySQL URL is the only change required. SQLAlchemy generates the correct DDL and SQL dialect automatically. All application code, services, and repositories remain identical.
 
 ---
 
 ## Running the application
 
-### Development mode
+The app has two independent processes — run both to get the full experience.
 
-Hot reload is enabled — the server restarts automatically whenever you edit a Python file in `backend/`.
+### Option A — Full stack (recommended)
 
+```bash
+make frontend
+```
+
+Starts the FastAPI backend on port 8000, waits 2 seconds, then starts the Dash frontend on port 8050.
+
+### Option B — Separate terminals
+
+**Terminal 1 — Backend:**
 ```bash
 make dev
 ```
 
-The server starts on `http://localhost:8000`.
+**Terminal 2 — Frontend:**
+```bash
+make frontend-only
+```
+
+### Access points
 
 | URL | Description |
 |---|---|
+| `http://localhost:8050` | Dash dashboard (main UI) |
 | `http://localhost:8000/docs` | Swagger UI — interactive API explorer |
-| `http://localhost:8000/redoc` | ReDoc — clean read-only documentation |
-| `http://localhost:8000/health` | Health check endpoint |
+| `http://localhost:8000/redoc` | ReDoc — read-only API docs |
+| `http://localhost:8000/health` | Health check |
 
-### Production mode
+### Dashboard pages
 
-Runs with 4 worker processes and reduced logging. Suitable for deployment behind a reverse proxy (nginx, Caddy).
-
-```bash
-make prod
-```
-
-> **Note on SQLite in production:** SQLite with WAL mode handles concurrent reads well and serialises concurrent writes without errors. For write-heavy production workloads, switch to PostgreSQL via `DATABASE_URL`.
-
-### Initialize the database
-
-Tables are created automatically on startup via the FastAPI lifespan handler. You can also create them manually:
-
-```bash
-make db-init
-```
+| Path | Description |
+|---|---|
+| `/` | Vue d'ensemble — KPIs, charts, alerts, opportunities |
+| `/upload` | Import wizard — step-by-step file ingestion |
+| `/invoices` | Issued invoices — KPIs, monthly chart, mark-as-paid |
+| `/subscriptions` | Recurring subscriptions |
+| `/recurring` | Recurring pattern detection + 3-month forecast |
+| `/report` | Tax report |
+| `/sources` | Payment sources & cards |
+| `/files` | Ingested file history |
 
 ---
 
 ## Available make commands
 
-```
-# =============================================================================
-# Shoebox — Developer task runner
-# =============================================================================
-# Usage:
-#   make dev          start the API server in development mode (hot reload)
-#   make prod         start the API server in production mode
-#   make test         run the full test suite
-#   make test-cov     run tests with coverage report
-#   make lint         check code style with ruff
-#   make format       auto-fix code style with ruff
-#   make typecheck    run mypy static type checking
-#   make db-init      create all database tables
-#   make db-reset     drop and recreate all tables (WARNING: deletes all data)
-#   make db-shell     open an interactive SQLite shell
-#   make install      install all dependencies (dev included)
-#   make clean        remove cache files and temporary artifacts
-# =============================================================================
-```
-
-### Quick reference
-
 | Command | What it does |
 |---|---|
-| `make dev` | Starts uvicorn with `--reload` on port 8000 |
-| `make prod` | Starts uvicorn with 4 workers, no reload, reduced logging |
-| `make test` | Runs pytest against an in-memory SQLite DB |
-| `make test-cov` | Same + generates `coverage_report/index.html` |
-| `make lint` | Checks code style with ruff (no changes applied) |
-| `make format` | Auto-fixes code style and formatting with ruff |
-| `make typecheck` | Runs mypy static type analysis |
-| `make db-init` | Creates all tables (idempotent, safe to run multiple times) |
-| `make db-reset` | **Drops all tables and data** — prompts for confirmation |
-| `make db-shell` | Opens `sqlite3` interactive shell on `data/shoebox.db` |
-| `make install` | Installs the project and all dev dependencies |
-| `make clean` | Removes `__pycache__`, `.pytest_cache`, `.mypy_cache`, coverage files |
+| `make dev` | Backend only — uvicorn with `--reload` on port 8000 |
+| `make prod` | Backend — uvicorn with 4 workers, no reload |
+| `make frontend` | Full stack — backend + frontend (both ports) |
+| `make frontend-only` | Frontend only — requires backend already running |
+| `make test` | Full test suite against in-memory SQLite |
+| `make test-cov` | Tests + HTML coverage report |
+| `make lint` | ruff code style check |
+| `make format` | ruff auto-fix |
+| `make typecheck` | mypy static type analysis |
+| `make db-init` | Create all database tables |
+| `make db-reset` | **Drop all data** and recreate tables |
+| `make db-shell` | Interactive SQLite shell |
+| `make install` | Install project + all dev dependencies |
+| `make clean` | Remove `__pycache__`, `.pytest_cache`, coverage files |
 
 ---
 
 ## Running the tests
 
-Tests use an in-memory SQLite database. No `.env` file, no running server, and no disk writes are needed.
+Tests run against an in-memory SQLite database — no `.env`, no running server required.
 
 ```bash
-# Run all tests
-make test
-
-# Run with coverage report
-make test-cov
-
-# Run a specific test file
-pytest backend/tests/test_categorization.py -v
-
-# Run a specific test by name
-pytest backend/tests/test_categorization.py::test_categorize_known_merchants -v
-
-# Stop on first failure
-pytest backend/tests/ -x
+make test                                              # full suite
+make test-cov                                          # with HTML report
+pytest backend/tests/test_categorization.py -v        # single file
+pytest backend/tests/ -x                               # stop on first failure
 ```
 
-### Test isolation strategy
+Each test runs inside a `SAVEPOINT` and is fully rolled back after completion.
 
-Each test runs inside a database `SAVEPOINT`. Even if the code under test calls `session.commit()`, all changes are rolled back after the test completes. This gives full isolation without dropping and recreating the schema between tests.
+---
 
-### Coverage report
+## Chrome extension
 
-```bash
-make test-cov
-open coverage_report/index.html   # macOS
-xdg-open coverage_report/index.html  # Linux
-```
+The extension shows a quick overview popup — KPIs, open action items, and unpaid invoices — without leaving your current browser tab. It connects to the local backend on port 8000.
+
+### Installation
+
+1. Open Chrome and go to `chrome://extensions`
+2. Enable **Developer mode** (toggle in the top-right corner)
+3. Click **Load unpacked**
+4. Select the `chrome-extension/` folder inside this repository
+5. The Shoebox icon appears in your toolbar
+
+> The extension requires the backend to be running (`make dev` or `make frontend`).  
+> It does **not** require an internet connection — all data comes from `localhost:8000`.
+
+### Extension features
+
+| Feature | Description |
+|---|---|
+| KPI cards | Business expenses, amount to collect, refunds, flagged items |
+| À faire | First 4 open action items from uploaded notes |
+| Factures en attente | Unpaid and overdue invoices with amounts |
+| Open dashboard | Button opens `http://localhost:8050` in a new tab |
+| Refresh | Manually re-fetches all data from the backend |
+| Error state | Clear message if the backend is not running |
 
 ---
 
 ## API reference
 
-The full interactive documentation is available at `http://localhost:8000/docs` when the server is running.
-
-### Endpoints summary
+Full interactive docs at `http://localhost:8000/docs` when the server is running.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/health` | API health check |
+| `GET` | `/health` | Health check |
 | `GET` | `/transactions` | List transactions (paginated, filterable) |
 | `POST` | `/transactions` | Create a manual transaction |
-| `GET` | `/transactions/{id}` | Get a transaction by ID |
-| `PATCH` | `/transactions/{id}` | Partially update a transaction |
+| `PATCH` | `/transactions/{id}` | Update a transaction |
 | `DELETE` | `/transactions/{id}` | Delete a transaction |
 | `GET` | `/invoices` | List issued invoices |
 | `POST` | `/invoices` | Create an invoice |
-| `PATCH` | `/invoices/{id}` | Update an invoice |
+| `PATCH` | `/invoices/{id}` | Update an invoice (status, date_paid…) |
 | `GET` | `/sources` | List payment sources |
 | `POST` | `/sources` | Register a payment source |
 | `POST` | `/files/upload` | Upload and ingest one or more files |
-| `GET` | `/files` | List all ingested files |
+| `GET` | `/files` | List ingested files |
+| `POST` | `/files/parse` | Parse a file preview without saving |
 | `GET` | `/analytics/summary` | Global financial KPIs |
-| `GET` | `/analytics/by-category` | Expenses grouped by category |
-| `GET` | `/analytics/by-month` | Expenses grouped by month |
-| `GET` | `/analytics/by-source` | Expenses grouped by payment source |
-| `GET` | `/actions` | List action items (todos) |
-| `POST` | `/actions` | Create an action item |
-| `PATCH` | `/actions/{id}/status` | Mark an action as done or reopen it |
+| `GET` | `/analytics/by-category` | Expenses by category |
+| `GET` | `/analytics/by-month` | Expenses by month |
+| `GET` | `/analytics/by-source` | Expenses by payment source |
+| `GET` | `/analytics/recurring` | Recurring patterns + 3-month forecast |
+| `GET` | `/actions` | List action items (todos from notes) |
+| `PATCH` | `/actions/{id}/status` | Mark an action done or reopen |
 
-### ID format
-
-All entity IDs follow the pattern `PREFIX-YYMMDD-NNNNN`:
-
-| Prefix | Entity | Example |
-|---|---|---|
-| `TXN` | Transaction (manual) | `TXN-250506-00001` |
-| `REC` | Receipt transaction | `REC-250122-00001` |
-| `STMT` | Statement file | `STMT-250101-00001` |
-| `INV` | Invoice | `INV-250101-00001` |
-| `SRC` | Payment source | `SRC-250101-00001` |
-| `ANO` | Anomaly | `ANO-250101-00001` |
-| `ACT` | Action item | `ACT-250101-00001` |
-
-### Accepted file formats by document type
+### Accepted file formats
 
 | Document type | Accepted formats |
 |---|---|
@@ -398,6 +305,10 @@ All entity IDs follow the pattern `PREFIX-YYMMDD-NNNNN`:
 | Statement (`STMT`) | `.pdf`, `.xlsx` |
 | Invoice (`INV`) | `.pdf`, `.xlsx` |
 | Notes (`NOTE`) | `.txt` |
+
+### ID format
+
+All IDs follow `PREFIX-YYMMDD-NNNNN` — e.g. `INV-250506-00003`.
 
 ---
 
@@ -412,31 +323,25 @@ Routers → Services → Core interfaces ← Infrastructure implementations
 - **Routers** never import repositories directly.
 - **Services** never import FastAPI or Pydantic.
 - **Core** (`models.py`, `interfaces.py`, `enums.py`) has zero external dependencies.
-- **Infrastructure** implements the core interfaces and depends on SQLAlchemy, pytesseract, pdfplumber, etc.
+- **Infrastructure** implements core interfaces using SQLAlchemy, pytesseract, PyMuPDF, etc.
 
-### Three model types — not one
+### Three model types
 
 | File | Type | Purpose |
 |---|---|---|
 | `core/models.py` | Python `@dataclass` | Domain objects — travel between layers |
-| `infrastructure/db/orm_models.py` | SQLAlchemy `Mapped` classes | Speak to the database |
+| `infrastructure/db/orm_models.py` | SQLAlchemy `Mapped` | Speak to the database |
 | `schemas/*.py` | Pydantic `BaseModel` | Validate API input, serialise API output |
-
-Conversion between layers happens in repositories (`ORM → dataclass`) and routers (`dataclass → Pydantic Read schema`).
 
 ### Switching databases
 
 Change one line in `.env`:
 
 ```bash
-# From
-DATABASE_URL=sqlite:///./data/shoebox.db
-
-# To
 DATABASE_URL=postgresql://user:password@localhost:5432/shoebox
 ```
 
-SQLAlchemy handles the DDL and SQL dialect differences. No application code changes.
+No application code changes required.
 
 ---
 
@@ -445,20 +350,22 @@ SQLAlchemy handles the DDL and SQL dialect differences. No application code chan
 - [x] Core domain models and interfaces
 - [x] SQLAlchemy ORM with `Mapped` / `mapped_column` (2.x style)
 - [x] ID generator (`PREFIX-YYMMDD-NNNNN`)
-- [x] PDF statement parser (pdfplumber)
+- [x] PyMuPDF PDF parser
 - [x] Image receipt parser (Tesseract OCR)
-- [x] XLSX invoice parser (openpyxl)
-- [x] Notes parser (action item extraction)
+- [x] XLSX invoice/statement parser (openpyxl)
+- [x] Notes parser (action item extraction from `[todo]` / `[done]`)
 - [x] Keyword-based categorisation engine
 - [x] Transaction validation (taxes, dates, amounts)
 - [x] Ingestion pipeline with per-file error handling
-- [x] FastAPI backend with full CRUD endpoints
-- [x] Analytics endpoints (summary, by-category, by-month, by-source)
+- [x] FastAPI backend — full CRUD + analytics endpoints
 - [x] Recurring pattern detection + 3-month forecast
 - [x] pytest suite with SAVEPOINT isolation
-- [ ] Dash frontend — upload flow
-- [ ] Dash frontend — dashboard views (overview, recurring, cards, files)
-- [ ] Anomaly resolution UI
-- [ ] Export to XLSX (tax report)
-- [ ] PostgreSQL support (tested end-to-end)
+- [x] Dash frontend — 4-step import wizard (type → upload → preview → forms)
+- [x] Dash frontend — overview dashboard with anomaly detection
+- [x] Dash frontend — issued invoice tracking (KPIs, chart, mark-as-paid)
+- [x] Dash frontend — subscriptions, recurring, report, sources, files pages
+- [x] Chrome extension — KPI overview + open-dashboard button
+- [ ] Export to XLSX (tax report download)
+- [ ] PostgreSQL end-to-end validation
 - [ ] Docker / docker-compose setup
+- [ ] Multi-period support (fiscal year selector)
