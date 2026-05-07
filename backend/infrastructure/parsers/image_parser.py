@@ -24,8 +24,13 @@ logger = logging.getLogger(__name__)
 _SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tiff"}
 
 # Matches totals like: TOTAL: $40.80  or  **TOTAL: $12.00**
+# _TOTAL_PATTERN = re.compile(
+#     r"TOTAL\s*[:\*]?\s*\$?([\d,]+\.\d{2})", re.IGNORECASE
+# )
+
 _TOTAL_PATTERN = re.compile(
-    r"TOTAL\s*[:\*]?\s*\$?([\d,]+\.\d{2})", re.IGNORECASE
+    r"(?<!SOUS[-\s])(?<!SUB[-\s])TOTAL\s*[:\*]?\s*\$?([\d,]+\.\d{2})",
+    re.IGNORECASE,
 )
 
 # Matches dates in dd/mm/yyyy or yyyy-mm-dd format
@@ -53,6 +58,10 @@ class ImageReceiptParser(BaseParser):
     confidence — the transaction is flagged as informal so the user
     can review and correct fields in the UI.
     """
+
+    @property
+    def produces_ocr(self) -> bool:
+        return True
 
     def can_parse(self, filename: str) -> bool:
         """Returns True for image file extensions supported by Tesseract."""
@@ -91,7 +100,7 @@ class ImageReceiptParser(BaseParser):
         ocr_confidence = (sum(confidences) / len(confidences) / 100.0
                          if confidences else 0.0)
 
-        # --- Amount extraction (required) ---
+        # Amount extraction (required)
         total_match = _TOTAL_PATTERN.search(full_text)
         if not total_match:
             logger.warning(
@@ -101,7 +110,7 @@ class ImageReceiptParser(BaseParser):
 
         amount = float(total_match.group(1).replace(",", ""))
 
-        # --- Date extraction (best effort) ---
+        # Date extraction (best effort)
         tx_date = date.today()
         date_match = _DATE_PATTERN.search(full_text)
         if date_match:
@@ -112,7 +121,7 @@ class ImageReceiptParser(BaseParser):
                 except ValueError:
                     continue
 
-        # --- Vendor extraction (best effort) ---
+        # Vendor extraction (best effort)
         vendor_match = _VENDOR_PATTERN.search(full_text)
         description  = (
             vendor_match.group(1).strip()

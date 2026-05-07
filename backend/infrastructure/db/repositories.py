@@ -7,7 +7,7 @@ Each repository class:
 - Never leaks ORM objects outside this module
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -182,7 +182,7 @@ class SQLTransactionRepository(ITransactionRepository):
         orm.is_informal       = transaction.is_informal
         orm.is_flagged        = transaction.is_flagged
         orm.flag_reason       = transaction.flag_reason
-        orm.updated_at        = datetime.utcnow()
+        orm.updated_at        = datetime.now(timezone.utc)
 
         self._session.commit()
         return transaction
@@ -315,6 +315,11 @@ class SQLSourceRepository(ISourceRepository):
             .first()
         )
         return self._to_domain(orm) if orm else None
+    
+    def find_by_id(self, source_id: str) -> Optional[PaymentSource]:
+        """Returns the source matching the given ID, or None."""
+        orm = self._session.get(PaymentSourceORM, source_id)
+        return self._to_domain(orm) if orm else None
 
 
 class SQLFileRepository(IFileRepository):
@@ -389,6 +394,20 @@ class SQLFileRepository(IFileRepository):
         ).update({"tx_count": tx_count, "total_amount": total_amount})
         self._session.commit()
 
+    def update_ocr_status(
+        self,
+        file_id:      str,
+        ocr_attempted: bool,
+        ocr_success:   bool,
+    ) -> None:
+        """Updates the OCR status flags after ingestion completes."""
+        self._session.query(UploadedFileORM).filter(
+            UploadedFileORM.id == file_id
+        ).update({
+            "ocr_attempted": ocr_attempted,
+            "ocr_success":   ocr_success,
+        })
+        self._session.commit()
 
 class SQLAnomalyRepository(IAnomalyRepository):
     """SQLAlchemy-backed anomaly repository."""

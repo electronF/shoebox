@@ -93,6 +93,11 @@ class ISourceRepository(ABC):
     @abstractmethod
     def find_by_label(self, label: str) -> Optional[PaymentSource]: ...
 
+    @abstractmethod
+    def find_by_id(self, source_id: str) -> Optional[PaymentSource]:
+        """Returns the source matching the given ID, or None."""
+        ...
+
 
 class IFileRepository(ABC):
     """Persistence contract for uploaded files."""
@@ -112,6 +117,14 @@ class IFileRepository(ABC):
     ) -> None:
         """Updates aggregated file statistics after ingestion."""
         ...
+    
+    @abstractmethod
+    def update_ocr_status(
+        self,
+        file_id:       str,
+        ocr_attempted: bool,
+        ocr_success:   bool,
+    ) -> None: ...
 
 
 class IAnomalyRepository(ABC):
@@ -181,6 +194,11 @@ class IParser(ABC):
             file does not contain transactional data (e.g., notes.txt).
         """
         ...
+        
+    @property
+    def produces_ocr(self) -> bool:
+        """Returns True if this parser uses OCR to extract data."""
+        return False
 
 
 class IFileStorage(ABC):

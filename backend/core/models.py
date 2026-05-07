@@ -7,7 +7,7 @@ domain (DIP principle: external layers depend on them, not the other way around)
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date as dateT, datetime, timezone
 from typing import Optional
 
 from .enums import (
@@ -30,7 +30,7 @@ class PaymentSource:
     label:       str
     source_type: SourceType
     last_four:   Optional[str]
-    created_at:  date
+    created_at:  dateT
 
 
 @dataclass
@@ -48,7 +48,7 @@ class UploadedFile:
     doc_type:      DocType
     storage_path:  str
     source_id:     Optional[str]
-    uploaded_at:   date
+    uploaded_at:   dateT
     tx_count:      int   = 0
     total_amount:  float = 0.0
     ocr_attempted: bool  = False
@@ -65,7 +65,7 @@ class Transaction:
     """
 
     id:                Optional[str]
-    date:              date
+    date:              dateT
     description:       str
     amount:            float         # negative = refund / credit
     category:          Category
@@ -79,7 +79,7 @@ class Transaction:
     is_informal:       bool  = False     # informal receipt without taxes accepted
     is_flagged:        bool  = False
     flag_reason:       Optional[str] = None
-    created_at:        datetime = field(default_factory=datetime.utcnow)
+    created_at:        datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -90,8 +90,8 @@ class Invoice:
     client:      str
     description: str
     amount:      float
-    date_sent:   Optional[date]
-    date_paid:   Optional[date]
+    date_sent:   Optional[dateT]
+    date_paid:   Optional[dateT]
     status:      InvoiceStatus
     file_id:     Optional[str]
     created_at:  datetime = field(default_factory=datetime.utcnow)
@@ -111,7 +111,7 @@ class Anomaly:
     anomaly_type:   AnomalyType
     description:    str
     resolved:       bool = False
-    detected_at:    date = field(default_factory=date.today)
+    detected_at:    dateT = field(default_factory=dateT.today)
 
 
 @dataclass
@@ -122,4 +122,4 @@ class ActionItem:
     text:        str
     status:      str        # "open" | "done"
     source_file: Optional[str]
-    created_at:  date
+    created_at:  dateT

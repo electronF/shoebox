@@ -55,6 +55,7 @@ def _validate_file_format(filename: str, doc_type: DocType) -> None:
         )
 
 
+
 @router.post(
     "/upload",
     response_model=list[IngestionResult],
@@ -64,6 +65,39 @@ def _validate_file_format(filename: str, doc_type: DocType) -> None:
         "Receives files, validates their format based on document type, "
         "triggers parsing, and persists extracted transactions."
     ),
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "files": {
+                                "type": "array",
+                                "items": {"type": "string", "format": "binary"},
+                                "description": "Files to ingest.",
+                            },
+                            "doc_type": {
+                                "type": "string",
+                                "enum": ["REC", "STMT", "INV", "NOTE"],
+                                "description": "Declared document type.",
+                            },
+                            "source_label": {
+                                "type": "string",
+                                "description": "Payment source label (e.g. 'Visa *4829').",
+                            },
+                            "source_type": {
+                                "type": "string",
+                                "enum": ["credit_card", "cash", "personal"],
+                                "description": "Type of payment source.",
+                            },
+                        },
+                        "required": ["files", "doc_type", "source_label", "source_type"],
+                    }
+                }
+            }
+        }
+    },
 )
 async def upload_files(
     files:        Annotated[list[UploadFile], File(description="Files to ingest.")],

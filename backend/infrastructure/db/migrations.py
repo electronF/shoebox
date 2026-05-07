@@ -3,7 +3,7 @@ from sqlalchemy import (
     Integer, ForeignKey, Text, DateTime, Enum as SAEnum
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from .database import Base
 from ...core.enums import (
     Category, SourceType, FileType,
@@ -88,9 +88,10 @@ class TransactionORM(Base):
     is_flagged      = Column(Boolean, default=False)
     flag_reason     = Column(Text)
 
-    created_at      = Column(DateTime, default=datetime.utcnow)
-    updated_at      = Column(DateTime, default=datetime.utcnow,
-                             onupdate=datetime.utcnow)
+    created_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc),)
+    
+    updated_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                             onupdate=lambda: datetime.now(timezone.utc))
 
 
 class RecurringPatternORM(Base):

@@ -38,7 +38,7 @@ class DiskFileStorage(IFileStorage):
         self._base_directory = base_directory or settings.upload_path
         self._base_directory.mkdir(parents=True, exist_ok=True)
 
-    def save(self, filename: str, content: bytes) -> str:
+    def save_not_duplicate(self, filename: str, content: bytes) -> str:
         """
         Saves file content to disk and returns its absolute storage path.
 
@@ -66,6 +66,37 @@ class DiskFileStorage(IFileStorage):
         else:
             destination.write_bytes(content)
             logger.info("File saved: %s (%d bytes)", destination, len(content))
+
+        return str(destination.resolve())
+    
+    def save(self, filename: str, content: bytes) -> str:
+        """
+        Saves file content to disk with a unique timestamped filename.
+
+        Each upload always produces a distinct file on disk, even if
+        the content is identical. This allows re-ingesting the same
+        document without conflicts.
+
+        Args:
+            filename: Original filename including extension.
+            content:  Raw bytes of the file.
+
+        Returns:
+            Absolute path string of the stored file.
+        """
+        from datetime import datetime
+
+        sha256_prefix    = hashlib.sha256(content).hexdigest()[:8]
+        timestamp        = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+        original         = Path(filename)
+        safe_stem        = original.stem[:40]
+        extension        = original.suffix.lower()
+
+        storage_filename = f"{timestamp}_{sha256_prefix}_{safe_stem}{extension}"
+        destination      = self._base_directory / storage_filename
+
+        destination.write_bytes(content)
+        logger.info("File saved: %s (%d bytes)", destination, len(content))
 
         return str(destination.resolve())
 

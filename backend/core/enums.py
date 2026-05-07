@@ -11,14 +11,23 @@ from enum import Enum
 class Category(str, Enum):
     """Expense categories for transaction classification."""
 
-    SOFTWARE      = "Software & Subscriptions"
+    # SOFTWARE      = "Software & Subscriptions"
+    # COWORKING     = "Coworking"
+    # ECOMMERCE     = "Ecommerce"
+    # SUPPLIES      = "Supplies & Shipping"
+    # MEALS         = "Business Meals"
+    # TRANSPORT     = "Transport"
+    # PERSONAL      = "Personal (Excluded)"
+    # UNCATEGORIZED = "Uncategorized"
+
+    SOFTWARE      = "Logiciels & abonnements"
     COWORKING     = "Coworking"
     ECOMMERCE     = "Ecommerce"
-    SUPPLIES      = "Supplies & Shipping"
-    MEALS         = "Business Meals"
+    SUPPLIES      = "Fournitures & envois"
+    MEALS         = "Repas d'affaires"
     TRANSPORT     = "Transport"
-    PERSONAL      = "Personal (Excluded)"
-    UNCATEGORIZED = "Uncategorized"
+    PERSONAL      = "Personnel (exclu)"
+    UNCATEGORIZED = "Non catégorisé"
 
     
 

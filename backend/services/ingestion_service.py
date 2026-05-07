@@ -20,7 +20,9 @@ from backend.core.interfaces import (
 )
 from backend.core.models import PaymentSource, UploadedFile
 from backend.infrastructure.parsers.txt_parser import TxtNotesParser
+from backend.infrastructure.parsers.image_parser import ImageReceiptParser
 from backend.schemas.file import IngestionResult
+
 
 logger = logging.getLogger(__name__)
 
@@ -177,11 +179,29 @@ class IngestionService:
             total_amount
         )
 
+        assert file_record.id is not None, (
+            "file_record.id must be set after save() — check SQLFileRepository.save()"
+        )
+
+        # self._file_repo.update_ocr_status(
+        #     file_id=file_record.id,
+        #     ocr_attempted=isinstance(matching_parser, ImageReceiptParser),
+        #     ocr_success=saved_count > 0 and isinstance(matching_parser, ImageReceiptParser),
+        # )
+
+        self._file_repo.update_ocr_status(
+            file_id=file_record.id,
+            ocr_attempted=matching_parser.produces_ocr,
+            ocr_success=matching_parser.produces_ocr and saved_count > 0,
+        )
+
         status = "ok" if not errors else "partial"
         logger.info(
             "Ingestion complete for '%s': %d transactions, status=%s",
             filename, saved_count, status,
         )
+        
+
         return IngestionResult(
             file_id=file_record.id,
             filename=filename,

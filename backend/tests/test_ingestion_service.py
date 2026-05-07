@@ -35,6 +35,7 @@ def mock_parser():
     """Returns a mock IParser that extracts one transaction."""
     parser = MagicMock()
     parser.can_parse.return_value = True
+    parser.produces_ocr = False          # ← ajouter cette ligne
     parser.parse.return_value = [
         Transaction(
             id=None,
@@ -42,8 +43,8 @@ def mock_parser():
             description="Bureau en Gros",
             amount=40.80,
             category=Category.SUPPLIES,
-            source_id="",          # filled in by ingestion service
-            file_id="",            # filled in by ingestion service
+            source_id="",
+            file_id="",
             ref=None,
             entry_method=EntryMethod.OCR,
             ocr_confidence=0.92,
@@ -102,6 +103,13 @@ def test_ingest_creates_payment_source_if_missing(ingestion_service, db_session)
 
 def test_ingest_reuses_existing_source(ingestion_service, db_session):
     """Calling ingest twice with the same source label must not duplicate sources."""
+    
+    # Each call must produce a unique storage path — mimic DiskFileStorage behavior
+    ingestion_service._storage.save.side_effect = [
+        "/fake/path/receipt_001.png",
+        "/fake/path/receipt_002.png",
+    ]
+    
     for _ in range(2):
         ingestion_service.ingest(
             filename="receipt.png",
@@ -111,7 +119,7 @@ def test_ingest_reuses_existing_source(ingestion_service, db_session):
             source_type=SourceType.CASH,
         )
 
-    sources = SQLSourceRepository(db_session).get_all()
+    sources  = SQLSourceRepository(db_session).get_all()
     matching = [s for s in sources if s.label == "Comptant — shoebox"]
     assert len(matching) == 1, "Same source label must not create duplicate rows."
 
@@ -120,6 +128,7 @@ def test_ingest_returns_no_parser_status_for_unsupported_file(db_session, mock_s
     """A file with no matching parser must return status='no_parser'."""
     parser_that_refuses = MagicMock()
     parser_that_refuses.can_parse.return_value = False
+    parser_that_refuses.produces_ocr = False
 
     service = IngestionService(
         parsers=[parser_that_refuses],

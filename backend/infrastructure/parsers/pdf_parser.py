@@ -1,8 +1,9 @@
 """
 Parser for bank/credit card statement PDF files.
 
-Uses pdfplumber to extract raw text, then applies a regex pattern
-to find individual transaction lines matching the Visa statement format.
+Uses PyMuPDF (fitz) for fast, reliable text extraction.
+PyMuPDF handles both text-based and scanned PDFs, and is
+significantly faster than pdfplumber for large statements.
 """
 
 import logging
@@ -10,9 +11,9 @@ import re
 from datetime import date
 from pathlib import Path
 
-import pdfplumber
+import pymupdf as fitz  # PyMuPDF
 
-from backend.core.enums import Category, EntryMethod, ValidationStatus
+from backend.core.enums import EntryMethod, ValidationStatus
 from backend.core.models import Transaction
 from backend.infrastructure.categorization.rules import categorize
 from backend.infrastructure.parsers.base import BaseParser
@@ -29,12 +30,11 @@ _TRANSACTION_LINE_PATTERN = re.compile(
 )
 
 _MONTH_NAME_TO_NUMBER: dict[str, int] = {
-    "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
-    "May": 5, "Jun": 6, "Jul": 7, "Aug": 8,
+    "Jan": 1, "Feb": 2,  "Mar": 3,  "Apr": 4,
+    "May": 5, "Jun": 6,  "Jul": 7,  "Aug": 8,
     "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
 }
 
-# Statement year — in production this should be extracted from the PDF header
 _STATEMENT_YEAR = 2025
 
 
@@ -42,8 +42,8 @@ class PDFStatementParser(BaseParser):
     """
     Parses credit card statement PDFs into Transaction domain objects.
 
-    Supports the National Credit Union Visa statement format.
-    Each matched line becomes one Transaction.
+    Uses PyMuPDF for text extraction — handles both digital and
+    scanned PDFs. Each matched transaction line becomes one Transaction.
     """
 
     def can_parse(self, filename: str) -> bool:
@@ -64,19 +64,17 @@ class PDFStatementParser(BaseParser):
         Returns:
             List of Transaction objects, one per statement line.
         """
-        with pdfplumber.open(file_path) as pdf:
-            full_text = "\n".join(
-                page.extract_text() or "" for page in pdf.pages
-            )
+        # Extract full text from all pages using PyMuPDF
+        full_text = self._extract_text(file_path)
 
         transactions: list[Transaction] = []
 
         for match in _TRANSACTION_LINE_PATTERN.finditer(full_text):
             ref, month_str, day_str, description, amount_str = match.groups()
 
-            amount     = float(amount_str.replace("$", "").replace(",", ""))
-            month      = _MONTH_NAME_TO_NUMBER[month_str]
-            tx_date    = date(_STATEMENT_YEAR, month, int(day_str))
+            amount      = float(amount_str.replace("$", "").replace(",", ""))
+            month       = _MONTH_NAME_TO_NUMBER[month_str]
+            tx_date     = date(_STATEMENT_YEAR, month, int(day_str))
             description = description.strip()
 
             category, is_personal, is_flagged, flag_reason = categorize(
@@ -106,3 +104,28 @@ class PDFStatementParser(BaseParser):
             file_path,
         )
         return transactions
+
+    @staticmethod
+    def _extract_text(file_path: str) -> str:
+        """
+        Extracts all text from a PDF using PyMuPDF.
+
+        Concatenates text from every page with a newline separator.
+        PyMuPDF preserves layout better than most alternatives, which
+        is important for regex matching on statement line formats.
+
+        Args:
+            file_path: Absolute path to the PDF file.
+
+        Returns:
+            Full text content of the PDF as a single string.
+        """
+        document  = fitz.open(file_path)
+        pages_text = []
+
+        for page in document:
+            # "text" mode preserves reading order and layout
+            pages_text.append(page.get_text("text"))
+
+        document.close()
+        return "\n".join(pages_text)
