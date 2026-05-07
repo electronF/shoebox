@@ -126,7 +126,7 @@ sudo apt update && sudo apt install tesseract-ocr tesseract-ocr-fra
 
 ```bash
 # 1. Clone
-git clone https://github.com/youruser/shoebox.git
+git clone https://github.com/electronf/shoebox.git
 cd shoebox
 
 # 2. Create and activate virtual environment
