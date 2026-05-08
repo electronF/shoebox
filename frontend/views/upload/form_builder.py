@@ -88,8 +88,12 @@ def build_form_section(
     """
     is_manual = filename == "manual"
 
-    if is_manual:
-        form_body = manual_form(f"form-{index}", doc_type)
+    if is_manual and doc_type == "REC":
+        form_body = receipt_form(f"form-{index}", {}, "manual")
+    elif is_manual and doc_type == "INV":
+        form_body = invoice_form(f"form-{index}", {})
+    elif is_manual:
+        form_body = manual_form(f"form-{index}", doc_type, data)
     elif doc_type == "REC":
         form_body = receipt_form(f"form-{index}", data, status)
     elif doc_type == "STMT":

@@ -51,7 +51,6 @@ def _invoice_single_form(form_id: str, data: dict) -> html.Div:
             [
                 form_field("N° FACTURE",       form_id, "invoice_number",
                            value=data.get("invoice_number", ""),
-                           required=True,
                            placeholder="ex: INV-2025-001"),
 
                 form_field("CLIENT",            form_id, "client",
@@ -96,7 +95,6 @@ def _invoice_single_form(form_id: str, data: dict) -> html.Div:
 
                 form_field("DATE D'ENVOI",      form_id, "date_sent",
                            value=data.get("date_sent", ""),
-                           required=True,
                            input_type="date"),
 
                 form_field("DATE PAIEMENT",     form_id, "date_paid",

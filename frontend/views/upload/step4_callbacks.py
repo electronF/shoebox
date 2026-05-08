@@ -21,9 +21,9 @@ from frontend.views.upload.form_builder import build_form_section
 log = logging.getLogger(__name__)
 
 _REQUIRED_PER_TYPE: dict[str, set[str]] = {
-    "REC":  {"merchant", "date", "total"},
+    "REC":  {"merchant", "date", "total", "subtotal"},
     "STMT": {"holder", "last_four", "period_from", "period_to"},
-    "INV":  {"client", "amount", "date_sent"},
+    "INV":  {"client", "amount"},
     "NOTE": {"note_text"},
 }
 _REQUIRED_MANUAL: set[str] = {"description", "amount", "date"}
@@ -101,7 +101,7 @@ def generate_forms(n_intervals: int, stored_files: list, doc_type: str):
         Tuple of (form_sections, summary_banner, doc_type, doc_type_label).
     """
     if not n_intervals:
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     sections = []
     errors   = 0
@@ -299,15 +299,31 @@ def append_file_section(
     if pathname != "/upload/forms" or not confirm or not stored_files:
         return no_update, no_update
 
-    current     = current_sections or []
-    new_file    = stored_files[-1]
+    current  = current_sections or []
+    new_file = stored_files[-1]
+    filename = new_file.get("filename", "fichier")
+    content  = new_file.get("content", "")
+    dtype    = doc_type or "REC"
+
+    extracted, parse_status = {}, "ok"
+    try:
+        raw_bytes = base64.b64decode(
+            content.split(",")[1] if "," in content else content
+        )
+        result       = api.parse_file_preview(filename, raw_bytes, dtype)
+        extracted    = result.get("data", {})
+        parse_status = result.get("status", "ok")
+    except Exception as exc:
+        log.error("append_file_section parse failed for '%s': %s", filename, exc)
+        parse_status = "error"
+
     new_section = build_form_section(
         index=len(current),
-        filename=new_file.get("filename", "fichier"),
-        content=new_file.get("content", ""),
-        doc_type=doc_type or "REC",
-        data={},
-        status="ok",
+        filename=filename,
+        content=content,
+        doc_type=dtype,
+        data=extracted,
+        status=parse_status if parse_status in ("ok", "warning", "error") else "ok",
     )
     updated = current + [new_section]
     return updated, _summary_banner(len(updated), 0)

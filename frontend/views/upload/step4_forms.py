@@ -86,7 +86,6 @@ def _add_file_panel() -> html.Div:
                 ),
                 style=DROPZONE,
                 multiple=True,
-                accept="*",
             ),
 
             html.Div(id="upload-file-list-s4"),

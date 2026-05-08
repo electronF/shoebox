@@ -230,6 +230,14 @@ async def parse_file_preview(
         if not parser:
             return {"status": "no_parser", "data": {}}
 
+        # Receipt: use dedicated extractor to get TPS/TVQ/subtotal/ref in one OCR pass
+        if doc_type == DocType.RECEIPT and hasattr(parser, "extract_receipt_data"):
+            rec_data = parser.extract_receipt_data(tmp_path)
+            return {
+                "status": "ok" if rec_data.get("total") else "empty",
+                "data":   rec_data,
+            }
+
         transactions = parser.parse(tmp_path, "preview", "preview")
 
         # Statement: return header metadata + all transaction rows

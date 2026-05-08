@@ -33,7 +33,10 @@ def manual_form(form_id: str, doc_type: str = "REC", data: dict | None = None) -
             form_field("N° FACTURE", form_id, "invoice_number",
                        placeholder="ex: INV-2025-001"),
         ],
-        "STMT": [],
+        "STMT": [
+            form_field("TRANS ID", form_id, "ref",
+                       placeholder="ex: TXN-2025-001"),
+        ],
         "NOTE": [
             form_field("TEXTE DE LA NOTE", form_id, "note_text",
                        required=True,

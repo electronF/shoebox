@@ -46,6 +46,23 @@ _VENDOR_PATTERN = re.compile(
 
 _DATE_FORMATS = ("%d/%m/%Y", "%Y-%m-%d")
 
+_TPS_PATTERN = re.compile(
+    r"(?:TPS|T\.P\.S\.|GST|G\.S\.T\.)\s*[:#]?\s*\$?([\d,]+\.\d{2})",
+    re.IGNORECASE,
+)
+_TVQ_PATTERN = re.compile(
+    r"(?:TVQ|T\.V\.Q\.|QST|Q\.S\.T\.)\s*[:#]?\s*\$?([\d,]+\.\d{2})",
+    re.IGNORECASE,
+)
+_SUBTOTAL_PATTERN = re.compile(
+    r"(?:SOUS[-\s]?TOTAL|SUBTOTAL|SUB[-\s]?TOTAL)\s*[:#]?\s*\$?([\d,]+\.\d{2})",
+    re.IGNORECASE,
+)
+_REF_PATTERN = re.compile(
+    r"(?:TRANS|REF|APPROV|AUTH|N[°o])\s*[#:\.\s]\s*([A-Z0-9\-]{4,})",
+    re.IGNORECASE,
+)
+
 
 class ImageReceiptParser(BaseParser):
     """
@@ -161,3 +178,65 @@ class ImageReceiptParser(BaseParser):
             description, amount, ocr_confidence * 100, file_path,
         )
         return [transaction]
+
+    def extract_receipt_data(self, file_path: str) -> dict:
+        """
+        Runs OCR once and returns all extractable receipt fields as a dict.
+
+        Returns empty strings for fields that cannot be found, so the form
+        can still be pre-populated with whatever is available.
+
+        Args:
+            file_path: Path to the image file.
+
+        Returns:
+            Dict with keys: merchant, date, total, subtotal, tps, tvq, ref,
+            category, ocr_confidence.
+        """
+        image = Image.open(file_path)
+
+        ocr_data = pytesseract.image_to_data(
+            image, lang="fra+eng", output_type=pytesseract.Output.DICT,
+        )
+        full_text = pytesseract.image_to_string(image, lang="fra+eng")
+
+        confidences = [
+            int(c) for c in ocr_data["conf"]
+            if str(c).isdigit() and int(c) > 0
+        ]
+        ocr_confidence = (sum(confidences) / len(confidences) / 100.0
+                         if confidences else 0.0)
+
+        def _grab(pattern: re.Pattern) -> str:
+            m = pattern.search(full_text)
+            return m.group(1).replace(",", "") if m else ""
+
+        total_raw = _grab(_TOTAL_PATTERN)
+
+        tx_date = date.today()
+        date_match = _DATE_PATTERN.search(full_text)
+        if date_match:
+            for fmt in _DATE_FORMATS:
+                try:
+                    tx_date = datetime.strptime(date_match.group(1), fmt).date()
+                    break
+                except ValueError:
+                    continue
+
+        vendor_match = _VENDOR_PATTERN.search(full_text)
+        merchant = (vendor_match.group(1).strip() if vendor_match
+                    else Path(file_path).stem)
+
+        category, _, _, _ = categorize(merchant, float(total_raw) if total_raw else 0.0)
+
+        return {
+            "merchant":       merchant,
+            "date":           str(tx_date),
+            "total":          total_raw,
+            "subtotal":       _grab(_SUBTOTAL_PATTERN),
+            "tps":            _grab(_TPS_PATTERN),
+            "tvq":            _grab(_TVQ_PATTERN),
+            "ref":            _grab(_REF_PATTERN),
+            "category":       category.value,
+            "ocr_confidence": round(ocr_confidence, 2),
+        }

@@ -40,6 +40,10 @@ def receipt_form(form_id: str, data: dict, status: str = "ok") -> html.Div:
                            required=True, field_status=date_status,
                            input_type="date"),
 
+                form_field("DESCRIPTION",   form_id, "description",
+                           value=data.get("description", ""),
+                           placeholder="ex: Fournitures de bureau"),
+
                 form_field("SOUS-TOTAL",    form_id, "subtotal",
                            value=data.get("subtotal", ""),
                            required=True,
