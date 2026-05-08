@@ -84,10 +84,10 @@ def statement_form(form_id: str, data: dict) -> html.Div:
                 # Column headers
                 html.Div(
                     [
-                        html.Span("Date",        style=_header_style("108px")),
+                        html.Span("Date",        style=_header_style("88px")),
                         html.Span("Description", style=_header_style("1")),
-                        html.Span("Montant",     style=_header_style("90px")),
-                        html.Span("Réf.",        style=_header_style("110px")),
+                        html.Span("Montant",     style=_header_style("80px")),
+                        html.Span("Réf.",        style=_header_style("96px")),
                     ],
                     style={
                         "display": "flex", "gap": "6px",
@@ -190,14 +190,14 @@ def _tx_row(form_id: str, index: int, tx: dict) -> html.Div:
                     with_portal=True,
                     style={"width": "100%"},
                 ),
-                style={"width": "108px", "flexShrink": "0"},
+                style={"width": "88px", "flexShrink": "0", "overflow": "hidden"},
             ),
             dcc.Input(
                 id={"type": "form-field", "form": form_id, "field": f"tx_{index}_desc"},
                 type="text",
                 value=tx.get("description", ""),
                 placeholder="Description",
-                style={**_input_style, "flex": "1"},
+                style={**_input_style, "flex": "1", "minWidth": "0"},
                 debounce=True,
             ),
             dcc.Input(
@@ -205,7 +205,7 @@ def _tx_row(form_id: str, index: int, tx: dict) -> html.Div:
                 type="text",
                 value=tx.get("amount", ""),
                 placeholder="0.00",
-                style={**_input_style, "width": "90px", "flexShrink": "0", "textAlign": "right"},
+                style={**_input_style, "width": "80px", "flexShrink": "0", "textAlign": "right"},
                 debounce=True,
             ),
             dcc.Input(
@@ -213,7 +213,7 @@ def _tx_row(form_id: str, index: int, tx: dict) -> html.Div:
                 type="text",
                 value=tx.get("ref", ""),
                 placeholder="TXN-…",
-                style={**_input_style, "width": "110px", "flexShrink": "0",
+                style={**_input_style, "width": "96px", "flexShrink": "0",
                        "fontSize": "10px", "color": COLORS["muted"]},
                 debounce=True,
             ),

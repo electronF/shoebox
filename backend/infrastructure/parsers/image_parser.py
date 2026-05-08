@@ -46,20 +46,24 @@ _VENDOR_PATTERN = re.compile(
 
 _DATE_FORMATS = ("%d/%m/%Y", "%Y-%m-%d")
 
+# TPS/GST — handles "TPS (5%) $1.77", "TPS: $1.77", "GST 1.77", etc.
 _TPS_PATTERN = re.compile(
-    r"(?:TPS|T\.P\.S\.|GST|G\.S\.T\.)\s*[:#]?\s*\$?([\d,]+\.\d{2})",
+    r"(?:TPS|T\.P\.S\.|GST|G\.S\.T\.)\s*(?:\([^)]*\))?\s*[:#]?\s*\$?([\d,]+\.\d{2})",
     re.IGNORECASE,
 )
+# TVQ/QST — handles "TVQ (9.975%) $3.54", "TVQ: $3.54", etc.
 _TVQ_PATTERN = re.compile(
-    r"(?:TVQ|T\.V\.Q\.|QST|Q\.S\.T\.)\s*[:#]?\s*\$?([\d,]+\.\d{2})",
+    r"(?:TVQ|T\.V\.Q\.|QST|Q\.S\.T\.)\s*(?:\([^)]*\))?\s*[:#]?\s*\$?([\d,]+\.\d{2})",
     re.IGNORECASE,
 )
+# Sous-total — handles "Sous-total $35.49", "SUBTOTAL: 35.49", etc.
 _SUBTOTAL_PATTERN = re.compile(
     r"(?:SOUS[-\s]?TOTAL|SUBTOTAL|SUB[-\s]?TOTAL)\s*[:#]?\s*\$?([\d,]+\.\d{2})",
     re.IGNORECASE,
 )
+# Transaction ref — handles "Trans #: 20250122-0312-0947", "REF: ABC123", "APPROV 123456"
 _REF_PATTERN = re.compile(
-    r"(?:TRANS|REF|APPROV|AUTH|N[°o])\s*[#:\.\s]\s*([A-Z0-9\-]{4,})",
+    r"(?:TRANS|REF|APPROV|AUTH|N[°o])\s*#?\s*:?\s*([A-Z0-9][A-Z0-9\-]{3,})",
     re.IGNORECASE,
 )
 

@@ -161,11 +161,11 @@ def _invoice_rows_form(form_id: str, rows: list[dict]) -> html.Div:
                 # Column headers
                 html.Div(
                     [
-                        html.Span("Client",      style=_hdr("130px")),
+                        html.Span("Client",      style=_hdr("120px")),
                         html.Span("Description", style=_hdr("1")),
-                        html.Span("Montant",     style=_hdr("80px")),
-                        html.Span("Envoyée",     style=_hdr("108px")),
-                        html.Span("Payée",       style=_hdr("108px")),
+                        html.Span("Montant",     style=_hdr("76px")),
+                        html.Span("Envoyée",     style=_hdr("92px")),
+                        html.Span("Payée",       style=_hdr("92px")),
                     ],
                     style={"display": "flex", "gap": "6px",
                            "marginBottom": "4px", "padding": "0 4px"},
@@ -247,19 +247,19 @@ def _inv_row(form_id: str, index: int, row: dict) -> html.Div:
             dcc.Input(
                 id={"type": "form-field", "form": form_id, "field": f"tx_{index}_client"},
                 type="text", value=row.get("client", ""), placeholder="Client",
-                style={**_s, "width": "130px", "flexShrink": "0"},
+                style={**_s, "width": "120px", "flexShrink": "0"},
                 debounce=True,
             ),
             dcc.Input(
                 id={"type": "form-field", "form": form_id, "field": f"tx_{index}_desc"},
                 type="text", value=row.get("description", ""), placeholder="Description",
-                style={**_s, "flex": "1"},
+                style={**_s, "flex": "1", "minWidth": "0"},
                 debounce=True,
             ),
             dcc.Input(
                 id={"type": "form-field", "form": form_id, "field": f"tx_{index}_amount"},
                 type="text", value=row.get("amount", ""), placeholder="0.00",
-                style={**_s, "width": "80px", "flexShrink": "0",
+                style={**_s, "width": "76px", "flexShrink": "0",
                        "textAlign": "right", "color": amount_color, "fontWeight": "600"},
                 debounce=True,
             ),
@@ -272,7 +272,7 @@ def _inv_row(form_id: str, index: int, row: dict) -> html.Div:
                     with_portal=True,
                     style={"width": "100%"},
                 ),
-                style={"width": "108px", "flexShrink": "0"},
+                style={"width": "92px", "flexShrink": "0", "overflow": "hidden"},
             ),
             html.Div(
                 dcc.DatePickerSingle(
@@ -283,7 +283,7 @@ def _inv_row(form_id: str, index: int, row: dict) -> html.Div:
                     with_portal=True,
                     style={"width": "100%"},
                 ),
-                style={"width": "108px", "flexShrink": "0"},
+                style={"width": "92px", "flexShrink": "0", "overflow": "hidden"},
             ),
         ],
         style={
